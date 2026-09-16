@@ -26,8 +26,10 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
 final class MsgHdrMemory {
+    // Room for the UDP_SEGMENT cmsg of a sendmsg or the UDP_GRO cmsg of a recvmsg.
+    private static final int CMSG_SPACE = Math.max(Native.CMSG_SPACE, Native.CMSG_SPACE_FOR_UDP_GRO);
     public static final int MSG_HDR_SIZE =
-            Native.SIZEOF_MSGHDR + Native.SIZEOF_SOCKADDR_STORAGE + Native.SIZEOF_IOVEC + Native.CMSG_SPACE;
+            Native.SIZEOF_MSGHDR + Native.SIZEOF_SOCKADDR_STORAGE + Native.SIZEOF_IOVEC + CMSG_SPACE;
     private static final byte[] EMPTY_SOCKADDR_STORAGE = new byte[Native.SIZEOF_SOCKADDR_STORAGE];
     // It is not possible to have a zero length buffer in sendFd,
     // so we use a 1 byte buffer here.
@@ -69,7 +71,7 @@ final class MsgHdrMemory {
         ).order(ByteOrder.nativeOrder());
         offset += Native.SIZEOF_IOVEC;
         this.cmsgDataMemory = PlatformDependent.offsetSlice(
-                msgHdrMemoryArray, offset, Native.CMSG_SPACE
+                msgHdrMemoryArray, offset, CMSG_SPACE
         ).order(ByteOrder.nativeOrder());
 
         msgHdrMemoryAddress = Buffer.memoryAddress(msgHdrMemory);
@@ -146,6 +148,32 @@ final class MsgHdrMemory {
 
     void prepRecvReadFd() {
         MsgHdr.prepReadFd(msgHdrMemory, cmsgDataMemory, cmsgDataOffset, iovMemory, 1);
+    }
+
+    void setRecv(LinuxSocket socket, long bufferAddress, int length) {
+        set(socket, null, bufferAddress, length, (short) 0);
+        // Clear what a previous read left.
+        CmsgHdr.clearLen(cmsgDataMemory);
+        // Always leave room for the UDP_GRO cmsg, even while UDP_GRO is off.
+        // It can be enabled after this read has been submitted,
+        // and the kernel would then have nowhere to report the segment size.
+        // While UDP_GRO is off the kernel writes nothing here.
+        MsgHdr.prepRecv(msgHdrMemory, cmsgDataMemory);
+    }
+
+    /**
+     * Returns the segment size the kernel reported via a {@code UDP_GRO} cmsg for the completed {@code recvmsg},
+     * or {@code 0} if it did not coalesce datagrams.
+     */
+    int udpGroSegmentSize() {
+        return CmsgHdr.readUdpGroSegmentSize(cmsgDataMemory, cmsgDataOffset);
+    }
+
+    /**
+     * Returns {@code true} if the kernel could not fit the control messages of the completed {@code recvmsg}.
+     */
+    boolean isControlTruncated() {
+        return (MsgHdr.getMsgFlags(msgHdrMemory) & Native.MSG_CTRUNC) != 0;
     }
 
     boolean hasPort(IoUringDatagramChannel channel) {

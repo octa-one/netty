@@ -121,6 +121,8 @@ final class Native {
     static final int CMSG_SPACE_FOR_FD = NativeStaticallyReferencedJniMethods.cmsgSpaceForFd();
     static final int CMSG_LEN = NativeStaticallyReferencedJniMethods.cmsgLen();
     static final int CMSG_LEN_FOR_FD = NativeStaticallyReferencedJniMethods.cmsgLenForFd();
+    static final int CMSG_SPACE_FOR_UDP_GRO = NativeStaticallyReferencedJniMethods.cmsgSpaceForUdpGro();
+    static final int CMSG_LEN_FOR_UDP_GRO = NativeStaticallyReferencedJniMethods.cmsgLenForUdpGro();
     static final int MSG_CONTROL_LEN_FOR_FD = NativeStaticallyReferencedJniMethods.msgControlLenForFd();
     static final int CMSG_OFFSETOF_CMSG_LEN = NativeStaticallyReferencedJniMethods.cmsghdrOffsetofCmsgLen();
     static final int CMSG_OFFSETOF_CMSG_LEVEL = NativeStaticallyReferencedJniMethods.cmsghdrOffsetofCmsgLevel();
@@ -326,9 +328,11 @@ final class Native {
     static final int IOSQE_CQE_SKIP_SUCCESS = 1 << 6;
     static final int MSG_DONTWAIT = NativeStaticallyReferencedJniMethods.msgDontwait();
     static final int MSG_FASTOPEN = NativeStaticallyReferencedJniMethods.msgFastopen();
+    static final int MSG_CTRUNC = NativeStaticallyReferencedJniMethods.msgCtrunc();
     static final int SOL_UDP = NativeStaticallyReferencedJniMethods.solUdp();
     static final int SOL_SOCKET = NativeStaticallyReferencedJniMethods.solSocket();
     static final int UDP_SEGMENT = NativeStaticallyReferencedJniMethods.udpSegment();
+    static final int UDP_GRO = NativeStaticallyReferencedJniMethods.udpGro();
     static final int SCM_RIGHTS = NativeStaticallyReferencedJniMethods.scmRights();
     private static final int TFO_ENABLED_CLIENT_MASK = 0x1;
     private static final int TFO_ENABLED_SERVER_MASK = 0x2;

@@ -73,4 +73,6 @@ public final class IoUringChannelOption<T> extends UnixChannelOption<T> {
             ChannelOption.valueOf(IoUringChannelOption.class, "IO_URING_WRITE_ZERO_COPY_THRESHOLD");
 
     public static final ChannelOption<Boolean> IP_MULTICAST_ALL = valueOf("IP_MULTICAST_ALL");
+
+    public static final ChannelOption<Boolean> UDP_GRO = valueOf("UDP_GRO");
 }

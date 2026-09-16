@@ -135,4 +135,29 @@ final class MsgHdr {
     static int getCmsgData(ByteBuffer memory, ByteBuffer msgControl, int cmsgHdrDataOffset) {
         return CmsgHdr.readScmRights(msgControl, cmsgHdrDataOffset);
     }
+
+    /**
+     * Prepare a {@code recvmsg} that gives the kernel room for a {@code UDP_GRO} cmsg.
+     */
+    static void prepRecv(ByteBuffer memory, ByteBuffer msgControl) {
+        int memoryPosition = memory.position();
+        long msgControlAddr = Buffer.memoryAddress(msgControl) + msgControl.position();
+        if (Native.SIZEOF_SIZE_T == 4) {
+            memory.putInt(memoryPosition + Native.MSGHDR_OFFSETOF_MSG_CONTROL, (int) msgControlAddr);
+            memory.putInt(memoryPosition + Native.MSGHDR_OFFSETOF_MSG_CONTROLLEN, Native.CMSG_SPACE_FOR_UDP_GRO);
+        } else {
+            assert Native.SIZEOF_SIZE_T == 8;
+            memory.putLong(memoryPosition + Native.MSGHDR_OFFSETOF_MSG_CONTROL, msgControlAddr);
+            memory.putLong(memoryPosition + Native.MSGHDR_OFFSETOF_MSG_CONTROLLEN, Native.CMSG_SPACE_FOR_UDP_GRO);
+        }
+        // Clear what a previous read left
+        memory.putInt(memoryPosition + Native.MSGHDR_OFFSETOF_MSG_FLAGS, 0);
+    }
+
+    /**
+     * Returns the {@code msg_flags} the kernel wrote for the completed {@code recvmsg}.
+     */
+    static int getMsgFlags(ByteBuffer memory) {
+        return memory.getInt(memory.position() + Native.MSGHDR_OFFSETOF_MSG_FLAGS);
+    }
 }

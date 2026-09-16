@@ -35,6 +35,7 @@ final class IoUringDatagramChannelConfig extends IoUringChannelConfig implements
     private static final RecvByteBufAllocator DEFAULT_RCVBUF_ALLOCATOR = new FixedRecvByteBufAllocator(2048);
     private boolean activeOnOpen;
     private volatile int maxDatagramSize;
+    private volatile boolean gro;
 
     IoUringDatagramChannelConfig(AbstractIoUringChannel channel) {
         super(channel);
@@ -52,7 +53,7 @@ final class IoUringDatagramChannelConfig extends IoUringChannelConfig implements
                 ChannelOption.IP_TOS, ChannelOption.DATAGRAM_CHANNEL_ACTIVE_ON_REGISTRATION,
                 IoUringChannelOption.SO_REUSEPORT, IoUringChannelOption.IP_FREEBIND,
                 IoUringChannelOption.IP_TRANSPARENT, IoUringChannelOption.MAX_DATAGRAM_PAYLOAD_SIZE,
-                IoUringChannelOption.IP_MULTICAST_ALL);
+                IoUringChannelOption.IP_MULTICAST_ALL, IoUringChannelOption.UDP_GRO);
     }
 
     @SuppressWarnings({ "unchecked", "deprecation" })
@@ -103,6 +104,9 @@ final class IoUringDatagramChannelConfig extends IoUringChannelConfig implements
         if (option == IoUringChannelOption.IP_MULTICAST_ALL) {
             return (T) Boolean.valueOf(isIpMulticastAll());
         }
+        if (option == IoUringChannelOption.UDP_GRO) {
+            return (T) Boolean.valueOf(isUdpGro());
+        }
         return super.getOption(option);
     }
 
@@ -141,6 +145,8 @@ final class IoUringDatagramChannelConfig extends IoUringChannelConfig implements
             setMaxDatagramPayloadSize((Integer) value);
         } else if (option == IoUringChannelOption.IP_MULTICAST_ALL) {
             setIpMulticastAll((Boolean) value);
+        } else if (option == IoUringChannelOption.UDP_GRO) {
+            setUdpGro((Boolean) value);
         } else {
             return super.setOption(option, value);
         }
@@ -521,5 +527,30 @@ final class IoUringDatagramChannelConfig extends IoUringChannelConfig implements
         } catch (IOException e) {
             throw new ChannelException(e);
         }
+    }
+
+    /**
+     * Enable / disable <a href="https://lwn.net/Articles/768995/">UDP_GRO</a>.
+     * @param gro {@code true} if {@code UDP_GRO} should be enabled, {@code false} otherwise.
+     * @return this.
+     */
+    public IoUringDatagramChannelConfig setUdpGro(boolean gro) {
+        try {
+            ((IoUringDatagramChannel) channel).socket.setUdpGro(gro);
+        } catch (IOException e) {
+            throw new ChannelException(e);
+        }
+        this.gro = gro;
+        return this;
+    }
+
+    /**
+     * Returns if {@code UDP_GRO} is enabled.
+     * @return {@code true} if enabled, {@code false} otherwise.
+     */
+    public boolean isUdpGro() {
+        // We don't do a syscall here but just return the cached value due a kernel bug:
+        // https://lore.kernel.org/netdev/20210325195614.800687-1-norman_maurer@apple.com/T/#u
+        return gro;
     }
 }

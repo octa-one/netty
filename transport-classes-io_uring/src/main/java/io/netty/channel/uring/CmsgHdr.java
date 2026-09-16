@@ -61,4 +61,41 @@ final class CmsgHdr {
     static int readScmRights(ByteBuffer cmsghdr, int cmsgHdrDataOffset) {
         return cmsghdr.getInt(cmsghdr.position() + cmsgHdrDataOffset);
     }
+
+    /**
+     * Zero {@code cmsg_len}, which is all {@link #readUdpGroSegmentSize(ByteBuffer, int)}
+     * needs to treat the cmsg as absent.
+     */
+    static void clearLen(ByteBuffer cmsghdr) {
+        int cmsghdrPosition = cmsghdr.position();
+        if (Native.SIZEOF_SIZE_T == 4) {
+            cmsghdr.putInt(cmsghdrPosition + Native.CMSG_OFFSETOF_CMSG_LEN, 0);
+        } else {
+            assert Native.SIZEOF_SIZE_T == 8;
+            cmsghdr.putLong(cmsghdrPosition + Native.CMSG_OFFSETOF_CMSG_LEN, 0);
+        }
+    }
+
+    /**
+     * Returns the segment size of a {@code UDP_GRO} cmsg, or {@code 0} if there is none.
+     */
+    static int readUdpGroSegmentSize(ByteBuffer cmsghdr, int cmsgHdrDataOffset) {
+        int cmsghdrPosition = cmsghdr.position();
+        long cmsgLen;
+        if (Native.SIZEOF_SIZE_T == 4) {
+            cmsgLen = cmsghdr.getInt(cmsghdrPosition + Native.CMSG_OFFSETOF_CMSG_LEN);
+        } else {
+            assert Native.SIZEOF_SIZE_T == 8;
+            cmsgLen = cmsghdr.getLong(cmsghdrPosition + Native.CMSG_OFFSETOF_CMSG_LEN);
+        }
+        // Other control messages, enabled by options this class does not set, can take this slot,
+        // so accept only a complete UDP_GRO cmsg here and nothing else may be read as a segment size.
+        if (cmsgLen < Native.CMSG_LEN_FOR_UDP_GRO ||
+                cmsghdr.getInt(cmsghdrPosition + Native.CMSG_OFFSETOF_CMSG_LEVEL) != Native.SOL_UDP ||
+                cmsghdr.getInt(cmsghdrPosition + Native.CMSG_OFFSETOF_CMSG_TYPE) != Native.UDP_GRO) {
+            return 0;
+        }
+
+        return cmsghdr.getInt(cmsghdrPosition + cmsgHdrDataOffset);
+    }
 }

@@ -429,10 +429,19 @@ public final class IoUringDatagramChannel extends AbstractIoUringChannel impleme
                 } else {
                     allocHandle.lastBytesRead(res);
                     if (hdr.hasPort(IoUringDatagramChannel.this)) {
-                        allocHandle.incMessagesRead(1);
+                        int segmentSize = hdr.udpGroSegmentSize();
+                        if (segmentSize == 0 && config.isUdpGro() && hdr.isControlTruncated()) {
+                            throw new IOException("UDP_GRO segment size was dropped as the control message did" +
+                                    " not fit; disable UDP_GRO or the other control messages of this socket");
+                        }
                         DatagramPacket packet = hdr.get(
                                 IoUringDatagramChannel.this, registration().attachment(), byteBuf, res);
-                        pipeline.fireChannelRead(packet);
+                        if (segmentSize > 0) {
+                            fireSegments(pipeline, allocHandle, packet, segmentSize);
+                        } else {
+                            allocHandle.incMessagesRead(1);
+                            pipeline.fireChannelRead(packet);
+                        }
                     }
                 }
             } catch (Throwable t) {
@@ -517,7 +526,7 @@ public final class IoUringDatagramChannel extends AbstractIoUringChannel impleme
                 // We can not continue reading before we did not submit the recvmsg(s) and received the results.
                 return false;
             }
-            msgHdrMemory.set(socket, null, bufferAddress, bufferLength, (short) 0);
+            msgHdrMemory.setRecv(socket, bufferAddress, bufferLength);
 
             int fd = fd().intValue();
             int msgFlags = first ? 0 : Native.MSG_DONTWAIT;
@@ -535,6 +544,25 @@ public final class IoUringDatagramChannel extends AbstractIoUringChannel impleme
             }
             recvmsgHdrs.setId(msgHdrMemory.idx(), id);
             return true;
+        }
+
+        private void fireSegments(ChannelPipeline pipeline, IoUringRecvByteAllocatorHandle allocHandle,
+                                  DatagramPacket packet, int segmentSize) {
+            ByteBuf content = packet.content();
+            InetSocketAddress recipient = packet.recipient();
+            InetSocketAddress sender = packet.sender();
+            try {
+                int readable = content.readableBytes();
+                allocHandle.incMessagesRead((readable + segmentSize - 1) / segmentSize);
+                while (readable > 0) {
+                    int length = Math.min(readable, segmentSize);
+                    pipeline.fireChannelRead(
+                            new DatagramPacket(content.readRetainedSlice(length), recipient, sender));
+                    readable -= length;
+                }
+            } finally {
+                packet.release();
+            }
         }
 
         @Override

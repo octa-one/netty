@@ -79,14 +79,18 @@ final class NativeStaticallyReferencedJniMethods {
     static native int msgDontwait();
     static native int iosqeBufferSelect();
     static native int msgFastopen();
+    static native int msgCtrunc();
     static native int cmsgSpace();
     static native int cmsgSpaceForFd();
     static native int cmsgLen();
     static native int cmsgLenForFd();
+    static native int cmsgSpaceForUdpGro();
+    static native int cmsgLenForUdpGro();
     static native int msgControlLenForFd();
     static native int solUdp();
     static native int solSocket();
     static native int udpSegment();
+    static native int udpGro();
     static native int scmRights();
     static native int cmsghdrOffsetofCmsgLen();
     static native int cmsghdrOffsetofCmsgLevel();

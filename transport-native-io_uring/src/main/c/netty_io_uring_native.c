@@ -53,6 +53,11 @@
 #define UDP_SEGMENT 103
 #endif
 
+// UDP_GRO is defined in linux 5. We define this here so older kernels can compile.
+#ifndef UDP_GRO
+#define UDP_GRO 104
+#endif
+
 // SO_INQ was added in Linux 6.17. Define it here so we can compile with older kernel headers.
 #ifndef SO_INQ
 #define SO_INQ 84
@@ -758,6 +763,10 @@ static jint netty_io_uring_msgFastopen(JNIEnv* env, jclass clazz) {
     return MSG_FASTOPEN;
 }
 
+static jint netty_io_uring_msgCtrunc(JNIEnv* env, jclass clazz) {
+    return MSG_CTRUNC;
+}
+
 static jint netty_io_uring_cmsgSpace(JNIEnv* env, jclass clazz) {
     return CMSG_SPACE(sizeof(uint16_t));
 }
@@ -789,6 +798,18 @@ static jint netty_io_uring_solSocket(JNIEnv* env, jclass clazz) {
 
 static jint netty_io_uring_udpSegment(JNIEnv* env, jclass clazz) {
     return UDP_SEGMENT;
+}
+
+static jint netty_io_uring_udpGro(JNIEnv* env, jclass clazz) {
+    return UDP_GRO;
+}
+
+static jint netty_io_uring_cmsgSpace_for_udp_gro(JNIEnv* env, jclass clazz) {
+    return CMSG_SPACE(sizeof(int));
+}
+
+static jint netty_io_uring_cmsgLen_for_udp_gro(JNIEnv* env, jclass clazz) {
+    return CMSG_LEN(sizeof(int));
 }
 
 static jint netty_io_uring_ScmRights(JNIEnv* env, jclass clazz) {
@@ -851,9 +872,13 @@ static const JNINativeMethod statically_referenced_fixed_method_table[] = {
   { "iosqeBufferSelect", "()I", (void *) netty_io_uring_BufferSelect },
   { "msgDontwait", "()I", (void *) netty_io_uring_msgDontwait },
   { "msgFastopen", "()I", (void *) netty_io_uring_msgFastopen },
+  { "msgCtrunc", "()I", (void *) netty_io_uring_msgCtrunc },
   { "solUdp", "()I", (void *) netty_io_uring_solUdp },
   { "solSocket", "()I", (void *) netty_io_uring_solSocket },
   { "udpSegment", "()I", (void *) netty_io_uring_udpSegment },
+  { "udpGro", "()I", (void *) netty_io_uring_udpGro },
+  { "cmsgSpaceForUdpGro", "()I", (void *) netty_io_uring_cmsgSpace_for_udp_gro },
+  { "cmsgLenForUdpGro", "()I", (void *) netty_io_uring_cmsgLen_for_udp_gro },
   { "scmRights", "()I", (void *) netty_io_uring_ScmRights },
   { "cmsghdrOffsetofCmsgLen", "()I", (void *) netty_io_uring_cmsghdrOffsetofCmsgLen },
   { "cmsghdrOffsetofCmsgLevel", "()I", (void *) netty_io_uring_cmsghdrOffsetofCmsgLevel },
